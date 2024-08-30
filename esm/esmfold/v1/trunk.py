@@ -180,7 +180,13 @@ class FoldingTrunk(nn.Module):
             z = z + self.pairwise_positional_embedding(residx, mask=mask)
 
             for block in self.blocks:
-                s, z = block(s, z, mask=mask, residue_index=residx, chunk_size=self.chunk_size)
+                if torch.is_grad_enabled():
+                    from torch.utils.checkpoint import checkpoint
+
+                    args = (s, z, mask)  # NOTE: residx is actually not used in the block
+                    s, z = checkpoint(block, *args, use_reentrant=True)
+                else:
+                    s, z = block(s, z, mask=mask, residue_index=residx, chunk_size=self.chunk_size)
             return s, z
 
         s_s = s_s_0
